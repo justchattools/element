@@ -128,6 +128,8 @@ export class DialogOpener {
                 break;
             case Action.OpenAddToExistingSpaceDialog: {
                 const space = payload.space;
+                const oldSpace = payload.oldSpace;
+                const roomToMove = payload.roomToMove;
                 Modal.createDialog(
                     AddExistingToSpaceDialog,
                     {
@@ -137,6 +139,8 @@ export class DialogOpener {
                         },
                         onAddSubspaceClick: () => showAddExistingSubspace(space),
                         space,
+                        oldSpace,
+                        roomToMove,
                         onFinished: (added: boolean) => {
                             if (added && SdkContextClass.instance.roomViewStore.getRoomId() === space.roomId) {
                                 defaultDispatcher.fire(Action.UpdateSpaceHierarchy);

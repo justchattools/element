@@ -18,10 +18,11 @@ limitations under the License.
 import React, { FC, useState, useMemo, useCallback } from "react";
 import classNames from "classnames";
 import { throttle } from "lodash";
-import { RoomStateEvent, ISearchResults } from "matrix-js-sdk/src/matrix";
+import { RoomStateEvent, ISearchResults, ClientEvent } from "matrix-js-sdk/src/matrix";
 import { CallType } from "matrix-js-sdk/src/webrtc/call";
 import { IconButton, Tooltip } from "@vector-im/compound-web";
 import { ViewRoomOpts } from "@matrix-org/react-sdk-module-api/lib/lifecycles/RoomViewLifecycle";
+import { showAddExistingRoomsWow } from "../../../utils/space";
 
 import type { MatrixEvent, Room } from "matrix-js-sdk/src/matrix";
 import { _t } from "../../../languageHandler";
@@ -72,6 +73,7 @@ import { Alignment } from "../elements/Tooltip";
 import RoomCallBanner from "../beacon/RoomCallBanner";
 import { shouldShowComponent } from "../../../customisations/helpers/UIComponents";
 import { UIComponent } from "../../../settings/UIFeature";
+import SpaceStore from "../../../stores/spaces/SpaceStore";
 
 class DisabledWithReason {
     public constructor(public readonly reason: string) {}
@@ -510,6 +512,7 @@ export default class RoomHeader extends React.Component<IProps, IState> {
     public context!: React.ContextType<typeof RoomContext>;
     private readonly client = this.props.room.client;
     private readonly featureAskToJoinWatcher: string;
+    private readonly subSpaceOrder: string[];
 
     public constructor(props: IProps, context: IState) {
         super(props, context);
@@ -518,6 +521,8 @@ export default class RoomHeader extends React.Component<IProps, IState> {
         this.state = {
             rightPanelOpen: RightPanelStore.instance.isOpen,
             featureAskToJoin: SettingsStore.getValue("feature_ask_to_join"),
+            currentSpace: undefined,
+            spaceToMoveTo: undefined,
         };
         this.featureAskToJoinWatcher = SettingsStore.watchSetting(
             "feature_ask_to_join",
@@ -526,10 +531,18 @@ export default class RoomHeader extends React.Component<IProps, IState> {
                 this.setState({ featureAskToJoin });
             },
         );
+        this.subSpaceOrder = [
+            "Évaluation",
+            "Approuvé/payé",
+            "Colis envoyé",
+            "Reçu/avortement commencé",
+            "Service terminé",
+        ];
     }
 
     public componentDidMount(): void {
         this.client.on(RoomStateEvent.Events, this.onRoomStateEvents);
+        this.client.on(ClientEvent.Sync, this.updateSpaces);
         RightPanelStore.instance.on(UPDATE_EVENT, this.onRightPanelStoreUpdate);
     }
 
@@ -540,6 +553,42 @@ export default class RoomHeader extends React.Component<IProps, IState> {
         RightPanelStore.instance.off(UPDATE_EVENT, this.onRightPanelStoreUpdate);
         SettingsStore.unwatchSetting(this.featureAskToJoinWatcher);
     }
+
+    private updateSpaces = (): void => {
+        console.log("room id", this.props.room.roomId);
+        const [parentId] = SpaceStore.instance.getKnownParents(this.props.room.roomId);
+        const parent = this.client.getRoom(parentId);
+        console.log("parent", parent);
+        let spaceParent = undefined;
+        let spaceParentChildren: Room[] = [];
+        if (parent) {
+            this.setState({ currentSpace: parent });
+            spaceParent = SpaceStore.instance.getCanonicalParent(parent.roomId);
+        }
+        if (spaceParent) {
+            spaceParentChildren = SpaceStore.instance.getChildSpaces(spaceParent.roomId);
+        } else if (parent) {
+            spaceParentChildren = SpaceStore.instance.getChildSpaces(parent.roomId);
+        }
+
+        if (spaceParentChildren && parent) {
+            const currentSpaceName = parent.name;
+            const currentSpaceIndex = this.subSpaceOrder.indexOf(currentSpaceName);
+            let newSpaceName: string;
+            // there is definitely a better way to do this but my brain is tired
+            if (currentSpaceIndex === -1) {
+                newSpaceName = this.subSpaceOrder[0];
+            } else if (currentSpaceIndex >= 4) {
+                newSpaceName = "";
+            } else {
+                newSpaceName = this.subSpaceOrder[currentSpaceIndex + 1];
+            }
+            const spaceToMoveTo = spaceParentChildren.find((space) => space.name === newSpaceName);
+            this.setState({ spaceToMoveTo: spaceToMoveTo });
+        }
+        console.log("currentSpace componentdidmount - ", this.state.currentSpace);
+        console.log("spaceToMoveTo componentdidmount - ", this.state.spaceToMoveTo);
+    };
 
     private onRightPanelStoreUpdate = (): void => {
         this.setState({ rightPanelOpen: RightPanelStore.instance.isOpen });
@@ -637,6 +686,23 @@ export default class RoomHeader extends React.Component<IProps, IState> {
                     title={_t("action|search")}
                     alignment={Alignment.Bottom}
                     key="search"
+                />,
+            );
+        }
+
+        if (!this.props.viewingCall && this.state.currentSpace && this.state.spaceToMoveTo && this.props.inRoom) {
+            console.log("currentSpace buttonLogic - ", this.state.currentSpace);
+            console.log("spaceToMoveTo buttonLogic - ", this.state.spaceToMoveTo);
+            startButtons.push(
+                <AccessibleTooltipButton
+                    className="mx_LegacyRoomHeader_button mx_LegacyRoomHeader_forwardButton"
+                    onClick={() => {
+                        // @ts-ignore
+                        showAddExistingRoomsWow(this.state.spaceToMoveTo, this.state.currentSpace, this.props.room);
+                    }}
+                    title={"Move Space"}
+                    alignment={Alignment.Bottom}
+                    key="movespace"
                 />,
             );
         }

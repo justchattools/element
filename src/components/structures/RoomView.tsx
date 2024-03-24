@@ -335,6 +335,7 @@ function LocalRoomView(props: LocalRoomViewProps): ReactElement {
                         enableRoomOptionsMenu={false}
                         viewingCall={false}
                         activeCall={null}
+                        spacePromotionButton={true}
                     />
                 )}
                 <main className="mx_RoomView_body" ref={props.roomView}>
@@ -388,6 +389,7 @@ function LocalRoomCreateLoader(props: ILocalRoomCreateLoaderProps): ReactElement
                         enableRoomOptionsMenu={false}
                         viewingCall={false}
                         activeCall={null}
+                        spacePromotionButton={true}
                     />
                 )}
                 <div className="mx_RoomView_body">
@@ -2653,6 +2655,7 @@ export class RoomView extends React.Component<IRoomProps, IRoomState> {
                                         viewingCall={viewingCall}
                                         activeCall={this.state.activeCall}
                                         additionalButtons={this.state.viewRoomOpts.buttons}
+                                        spacePromotionButton={true}
                                     />
                                 )}
                                 {mainSplitBody}

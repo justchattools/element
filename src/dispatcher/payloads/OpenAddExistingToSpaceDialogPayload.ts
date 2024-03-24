@@ -23,4 +23,6 @@ export interface OpenAddExistingToSpaceDialogPayload extends ActionPayload {
     action: Action.OpenAddToExistingSpaceDialog;
 
     space: Room;
+    oldSpace?: Room;
+    roomToMove?: Room;
 }

@@ -41,6 +41,7 @@ import LazyRenderList from "../elements/LazyRenderList";
 import { useSettingValue } from "../../../hooks/useSettings";
 import { filterBoolean } from "../../../utils/arrays";
 import { NonEmptyArray } from "../../../@types/common";
+import { RoomHierarchy } from "matrix-js-sdk/src/room-hierarchy";
 
 // These values match CSS
 const ROW_HEIGHT = 32 + 12;
@@ -49,6 +50,8 @@ const GROUP_MARGIN = 24;
 
 interface IProps {
     space: Room;
+    oldSpace: Room;
+    roomToMove: Room;
     onCreateRoomClick(ev: ButtonEvent): void;
     onAddSubspaceClick(): void;
     onFinished(added?: boolean): void;
@@ -87,6 +90,8 @@ type Renderer = (
 
 interface IAddExistingToSpaceProps {
     space: Room;
+    oldSpace?: Room;
+    roomToMove?: Room;
     footerPrompt?: ReactNode;
     filterPlaceholder: string;
     emptySelectionButton?: ReactNode;
@@ -128,6 +133,8 @@ const getScrollState = (
 
 export const AddExistingToSpace: React.FC<IAddExistingToSpaceProps> = ({
     space,
+    oldSpace,
+    roomToMove,
     footerPrompt,
     emptySelectionButton,
     filterPlaceholder,
@@ -138,11 +145,17 @@ export const AddExistingToSpace: React.FC<IAddExistingToSpaceProps> = ({
 }) => {
     const cli = useContext(MatrixClientContext);
     const msc3946ProcessDynamicPredecessor = useSettingValue<boolean>("feature_dynamic_room_predecessors");
-    const visibleRooms = useMemo(
-        () =>
-            cli?.getVisibleRooms(msc3946ProcessDynamicPredecessor).filter((r) => r.getMyMembership() === "join") ?? [],
-        [cli, msc3946ProcessDynamicPredecessor],
-    );
+    let visibleRooms;
+    if (roomToMove) {
+        visibleRooms = [roomToMove];
+    } else {
+        visibleRooms = useMemo(
+            () =>
+                cli?.getVisibleRooms(msc3946ProcessDynamicPredecessor).filter((r) => r.getMyMembership() === "join") ??
+                [],
+            [cli, msc3946ProcessDynamicPredecessor],
+        );
+    }
 
     const scrollRef = useRef<AutoHideScrollbar<"div">>(null);
     const [scrollState, setScrollState] = useState<IScrollState>({
@@ -212,6 +225,9 @@ export const AddExistingToSpace: React.FC<IAddExistingToSpaceProps> = ({
 
                     throw e;
                 });
+                if (oldSpace) {
+                    await oldSpace.client.sendStateEvent(oldSpace.roomId, EventType.SpaceChild, {}, room.roomId);
+                }
                 setProgress((i) => (i ?? 0) + 1);
             } catch (e) {
                 logger.error("Failed to add rooms to space", e);
@@ -455,7 +471,14 @@ export const SubspaceSelector: React.FC<ISubspaceSelectorProps> = ({ title, spac
     );
 };
 
-const AddExistingToSpaceDialog: React.FC<IProps> = ({ space, onCreateRoomClick, onAddSubspaceClick, onFinished }) => {
+const AddExistingToSpaceDialog: React.FC<IProps> = ({
+    space,
+    oldSpace,
+    roomToMove,
+    onCreateRoomClick,
+    onAddSubspaceClick,
+    onFinished,
+}) => {
     const [selectedSpace, setSelectedSpace] = useState(space);
 
     return (
@@ -476,6 +499,8 @@ const AddExistingToSpaceDialog: React.FC<IProps> = ({ space, onCreateRoomClick, 
             <MatrixClientContext.Provider value={space.client}>
                 <AddExistingToSpace
                     space={space}
+                    oldSpace={oldSpace}
+                    roomToMove={roomToMove}
                     onFinished={onFinished}
                     footerPrompt={
                         <>

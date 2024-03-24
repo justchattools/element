@@ -58,6 +58,8 @@ import { isVideoRoom } from "../../../utils/video-rooms";
 import { notificationLevelToIndicator } from "../../../utils/notifications";
 import Modal from "../../../Modal";
 import ShareDialog from "../dialogs/ShareDialog";
+import { useRoomHierarchy } from "../../structures/SpaceHierarchy";
+import SpaceStore from "../../../stores/spaces/SpaceStore";
 
 export default function RoomHeader({
     room,
@@ -74,6 +76,12 @@ export default function RoomHeader({
 
     const members = useRoomMembers(room, 2500);
     const memberCount = useRoomMemberCount(room, { throttleWait: 2500 });
+
+    const [parent] = SpaceStore.instance.getKnownParents(room.roomId);
+    const [spaceParent] = SpaceStore.instance.getKnownParents(parent);
+
+    console.log("room parents", parent);
+    console.log("space parents", spaceParent);
 
     const {
         voiceCallDisabledReason,

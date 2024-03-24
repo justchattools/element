@@ -71,6 +71,15 @@ export const showAddExistingRooms = (space: Room): void => {
     });
 };
 
+export const showAddExistingRoomsWow = (space: Room, oldSpace: Room, roomToMove: Room): void => {
+    defaultDispatcher.dispatch<OpenAddExistingToSpaceDialogPayload>({
+        action: Action.OpenAddToExistingSpaceDialog,
+        space,
+        oldSpace,
+        roomToMove,
+    });
+};
+
 export const showCreateNewRoom = async (space: Room, type?: RoomType): Promise<boolean> => {
     const modal = Modal.createDialog(CreateRoomDialog, {
         type,
